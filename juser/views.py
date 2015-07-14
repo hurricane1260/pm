@@ -1,24 +1,20 @@
-#coding=utf-8
+# coding: utf-8
+# Author: Guanghongwei
+# Email: ibuler@qq.com
 
-import os
 import random
-import datetime
-from django.core.exceptions import ObjectDoesNotExist
-from django.core.mail import send_mail
-from django.http import HttpResponse, HttpResponseRedirect
+from Crypto.PublicKey import RSA
+import crypt
 
 from django.shortcuts import render_to_response
 from django.db.models import Q
 from django.template import RequestContext
 
 from pm.api import *
-from juser.models import DEPT, UserGroup, User
 
 
 def gen_rand_pwd(num):
-    """
-        生成随机密码
-    """
+    """生成随机密码"""
     seed = "1234567890abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
     salt_list = []
     for i in range(num):
@@ -31,14 +27,11 @@ class AddError(Exception):
     pass
 
 
-def group_add_user(group, user_id=None, username=None):
-    """
+def gen_sha512(salt, password):
+    return crypt.crypt(password, '$6$%s$' % salt)
 
-    :param group:
-    :param user_id:
-    :param username:
-    :raise AddError:
-    """
+
+def group_add_user(group, user_id=None, username=None):
     try:
         if user_id:
             user = User.objects.get(id=user_id)
@@ -51,11 +44,6 @@ def group_add_user(group, user_id=None, username=None):
 
 
 def db_add_group(**kwargs):
-    """
-
-    :param kwargs:
-    :raise AddError:
-    """
     name = kwargs.get('name')
     group = UserGroup.objects.filter(name=name)
     users = kwargs.pop('users')
@@ -68,11 +56,6 @@ def db_add_group(**kwargs):
 
 
 def db_add_user(**kwargs):
-    """
-
-    :param kwargs:
-    :return:
-    """
     groups_post = kwargs.pop('groups')
     user = User(**kwargs)
     user.save()
@@ -86,10 +69,6 @@ def db_add_user(**kwargs):
 
 
 def db_update_user(**kwargs):
-    """
-
-    :param kwargs:
-    """
     groups_post = kwargs.pop('groups')
     user_id = kwargs.pop('user_id')
     user = User.objects.filter(id=user_id)
@@ -107,10 +86,6 @@ def db_update_user(**kwargs):
 
 
 def db_del_user(username):
-    """
-
-    :param username:
-    """
     try:
         user = User.objects.get(username=username)
         user.delete()
@@ -118,21 +93,87 @@ def db_del_user(username):
         pass
 
 
-def server_del_user(username):
-    """
+def gen_ssh_key(username, password=None, length=2048):
+    private_key_dir = os.path.join(BASE_DIR, 'keys/jumpserver/')
+    private_key_file = os.path.join(private_key_dir, username+".pem")
+    public_key_dir = '/home/%s/.ssh/' % username
+    public_key_file = os.path.join(public_key_dir, 'authorized_keys')
+    is_dir(private_key_dir)
+    is_dir(public_key_dir, username, mode=0700)
 
-    :param username:
-    """
+    key = RSA.generate(length)
+    with open(private_key_file, 'w') as pri_f:
+        pri_f.write(key.exportKey('PEM', password))
+    os.chmod(private_key_file, 0600)
+
+    pub_key = key.publickey()
+    with open(public_key_file, 'w') as pub_f:
+        pub_f.write(pub_key.exportKey('OpenSSH'))
+    os.chmod(public_key_file, 0600)
+    bash('chown %s:%s %s' % (username, username, public_key_file))
+
+
+def server_add_user(username, password, ssh_key_pwd):
+    bash("useradd '%s'; echo '%s' | passwd --stdin '%s'" % (username, password, username))
+    gen_ssh_key(username, ssh_key_pwd)
+
+
+def server_del_user(username):
     bash('userdel -r %s' % username)
+
+
+def ldap_add_user(username, ldap_pwd):
+    if LDAP_ENABLE:
+        ldap_conn = LDAPMgmt(LDAP_HOST_URL, LDAP_BASE_DN, LDAP_ROOT_DN, LDAP_ROOT_PW)
+    else:
+        return
+    user_dn = "uid=%s,ou=People,%s" % (username, LDAP_BASE_DN)
+    password_sha512 = gen_sha512(gen_rand_pwd(6), ldap_pwd)
+    user = User.objects.filter(username=username)
+    if user:
+        user = user[0]
+    else:
+        raise AddError(u'用户 %s 不存在' % username)
+
+    user_attr = {'uid': [str(username)],
+                 'cn': [str(username)],
+                 'objectClass': ['account', 'posixAccount', 'top', 'shadowAccount'],
+                 'userPassword': ['{crypt}%s' % password_sha512],
+                 'shadowLastChange': ['16328'],
+                 'shadowMin': ['0'],
+                 'shadowMax': ['99999'],
+                 'shadowWarning': ['7'],
+                 'loginShell': ['/bin/bash'],
+                 'uidNumber': [str(user.id)],
+                 'gidNumber': [str(user.id)],
+                 'homeDirectory': [str('/home/%s' % username)]}
+
+    group_dn = "cn=%s,ou=Group,%s" % (username, LDAP_BASE_DN)
+    group_attr = {'objectClass': ['posixGroup', 'top'],
+                  'cn': [str(username)],
+                  'userPassword': ['{crypt}x'],
+                  'gidNumber': [str(user.id)]}
+
+    ldap_conn.add(user_dn, user_attr)
+    ldap_conn.add(group_dn, group_attr)
+
+
+def ldap_del_user(username):
+    if LDAP_ENABLE:
+        ldap_conn = LDAPMgmt(LDAP_HOST_URL, LDAP_BASE_DN, LDAP_ROOT_DN, LDAP_ROOT_PW)
+    else:
+        return
+    user_dn = "uid=%s,ou=People,%s" % (username, LDAP_BASE_DN)
+    group_dn = "cn=%s,ou=Group,%s" % (username, LDAP_BASE_DN)
+    sudo_dn = 'cn=%s,ou=Sudoers,%s' % (username, LDAP_BASE_DN)
+
+    ldap_conn.delete(user_dn)
+    ldap_conn.delete(group_dn)
+    ldap_conn.delete(sudo_dn)
 
 
 @require_super_user
 def dept_add(request):
-    """
-
-    :param request:
-    :return: :raise AddError:
-    """
     header_title, path1, path2 = '添加部门', '用户管理', '添加部门'
     if request.method == 'POST':
         name = request.POST.get('name', '')
@@ -154,11 +195,6 @@ def dept_add(request):
 
 @require_super_user
 def dept_list(request):
-    """
-
-    :param request:
-    :return:
-    """
     header_title, path1, path2 = '查看部门', '用户管理', '查看部门'
     keyword = request.GET.get('search')
     if keyword:
@@ -173,11 +209,6 @@ def dept_list(request):
 
 @require_admin
 def dept_list_adm(request):
-    """
-
-    :param request:
-    :return:
-    """
     header_title, path1, path2 = '查看部门', '用户管理', '查看部门'
     user, dept = get_session_user_dept(request)
     contact_list = [dept]
@@ -187,11 +218,6 @@ def dept_list_adm(request):
 
 
 def chg_role(request):
-    """
-
-    :param request:
-    :return:
-    """
     role = {'SU': 2, 'DA': 1, 'CU': 0}
     user, dept = get_session_user_dept(request)
     if request.session['role_id'] > 0:
@@ -203,11 +229,6 @@ def chg_role(request):
 
 @require_super_user
 def dept_detail(request):
-    """
-
-    :param request:
-    :return:
-    """
     dept_id = request.GET.get('id', None)
     if not dept_id:
         return HttpResponseRedirect('/juser/dept_list/')
@@ -220,11 +241,6 @@ def dept_detail(request):
 
 @require_super_user
 def dept_del(request):
-    """
-
-    :param request:
-    :return:
-    """
     dept_id = request.GET.get('id', None)
     if not dept_id or dept_id in ['1', '2']:
         return HttpResponseRedirect('/juser/dept_list/')
@@ -236,11 +252,6 @@ def dept_del(request):
 
 
 def dept_member(dept_id):
-    """
-
-    :param dept_id:
-    :return:
-    """
     dept = DEPT.objects.filter(id=dept_id)
     if dept:
         dept = dept[0]
@@ -248,11 +259,6 @@ def dept_member(dept_id):
 
 
 def dept_member_update(dept, users_id_list):
-    """
-
-    :param dept:
-    :param users_id_list:
-    """
     old_users = dept.user_set.all()
     new_users = []
     for user_id in users_id_list:
@@ -273,11 +279,6 @@ def dept_member_update(dept, users_id_list):
 
 @require_super_user
 def dept_del_ajax(request):
-    """
-
-    :param request:
-    :return:
-    """
     dept_ids = request.POST.get('dept_ids')
     for dept_id in dept_ids.split(','):
         if int(dept_id) > 2:
@@ -287,11 +288,6 @@ def dept_del_ajax(request):
 
 @require_super_user
 def dept_edit(request):
-    """
-
-    :param request:
-    :return:
-    """
     header_title, path1, path2 = '部门编辑', '用户管理', '部门编辑'
     if request.method == 'GET':
         dept_id = request.GET.get('id', '')
@@ -323,11 +319,6 @@ def dept_edit(request):
 
 
 def dept_user_ajax(request):
-    """
-
-    :param request:
-    :return:
-    """
     dept_id = request.GET.get('id', '4')
     if dept_id not in ['1', '2']:
         dept = DEPT.objects.filter(id=dept_id)
@@ -340,13 +331,9 @@ def dept_user_ajax(request):
     return render_to_response('juser/dept_user_ajax.html', locals())
 
 
+
 @require_super_user
 def group_add(request):
-    """
-
-    :param request:
-    :return: :raise AddError:
-    """
     error = ''
     msg = ''
     header_title, path1, path2 = '添加小组', '用户管理', '添加小组'
@@ -388,11 +375,6 @@ def group_add(request):
 
 @require_admin
 def group_add_adm(request):
-    """
-
-    :param request:
-    :return: :raise AddError:
-    """
     error = ''
     msg = ''
     header_title, path1, path2 = '添加小组', '用户管理', '添加小组'
@@ -424,11 +406,6 @@ def group_add_adm(request):
 
 @require_super_user
 def group_list(request):
-    """
-
-    :param request:
-    :return:
-    """
     header_title, path1, path2 = '查看小组', '用户管理', '查看小组'
     keyword = request.GET.get('search', '')
     did = request.GET.get('did', '')
@@ -449,11 +426,6 @@ def group_list(request):
 
 @require_admin
 def group_list_adm(request):
-    """
-
-    :param request:
-    :return:
-    """
     header_title, path1, path2 = '查看部门小组', '用户管理', '查看小组'
     keyword = request.GET.get('search', '')
     did = request.GET.get('did', '')
@@ -469,11 +441,6 @@ def group_list_adm(request):
 
 @require_admin
 def group_detail(request):
-    """
-
-    :param request:
-    :return:
-    """
     group_id = request.GET.get('id', None)
     if not group_id:
         return HttpResponseRedirect('/')
@@ -484,11 +451,6 @@ def group_detail(request):
 
 @require_super_user
 def group_del(request):
-    """
-
-    :param request:
-    :return:
-    """
     group_id = request.GET.get('id', '')
     if not group_id:
         return HttpResponseRedirect('/')
@@ -498,11 +460,6 @@ def group_del(request):
 
 @require_admin
 def group_del_adm(request):
-    """
-
-    :param request:
-    :return:
-    """
     group_id = request.GET.get('id', '')
     if not validate(request, user_group=[group_id]):
         return HttpResponseRedirect('/juser/group_list/')
@@ -514,11 +471,6 @@ def group_del_adm(request):
 
 @require_admin
 def group_del_ajax(request):
-    """
-
-    :param request:
-    :return:
-    """
     group_ids = request.POST.get('group_ids')
     group_ids = group_ids.split(',')
     if request.session.get('role_id') == 1:
@@ -530,11 +482,6 @@ def group_del_ajax(request):
 
 
 def group_update_member(group_id, users_id_list):
-    """
-
-    :param group_id:
-    :param users_id_list:
-    """
     group = UserGroup.objects.filter(id=group_id)
     if group:
         group = group[0]
@@ -546,11 +493,6 @@ def group_update_member(group_id, users_id_list):
 
 @require_super_user
 def group_edit(request):
-    """
-
-    :param request:
-    :return: :raise AddError:
-    """
     error = ''
     msg = ''
     header_title, path1, path2 = '修改小组信息', '用户管理', '编辑小组'
@@ -599,11 +541,6 @@ def group_edit(request):
 
 @require_admin
 def group_edit_adm(request):
-    """
-
-    :param request:
-    :return: :raise AddError:
-    """
     error = ''
     msg = ''
     header_title, path1, path2 = '修改小组信息', '用户管理', '编辑小组'
@@ -652,11 +589,6 @@ def group_edit_adm(request):
 
 @require_super_user
 def user_add(request):
-    """
-
-    :param request:
-    :return: :raise AddError:
-    """
     error = ''
     msg = ''
     header_title, path1, path2 = '添加用户', '用户管理', '添加用户'
@@ -700,9 +632,14 @@ def user_add(request):
                                    password=md5_crypt(password),
                                    name=name, email=email, dept=dept,
                                    groups=groups, role=role_post,
+                                   ssh_key_pwd=md5_crypt(ssh_key_pwd),
+                                   ldap_pwd=CRYPTOR.encrypt(ldap_pwd),
                                    is_active=is_active,
                                    date_joined=datetime.datetime.now())
 
+                server_add_user(username, password, ssh_key_pwd)
+                if LDAP_ENABLE:
+                    ldap_add_user(username, ldap_pwd)
                 mail_title = u'恭喜你的跳板机用户添加成功 Jumpserver'
                 mail_msg = """
                 Hi, %s
@@ -733,11 +670,6 @@ def user_add(request):
 
 @require_admin
 def user_add_adm(request):
-    """
-
-    :param request:
-    :return: :raise AddError:
-    """
     error = ''
     msg = ''
     header_title, path1, path2 = '添加用户', '用户管理', '添加用户'
@@ -810,11 +742,6 @@ def user_add_adm(request):
 
 @require_super_user
 def user_list(request):
-    """
-
-    :param request:
-    :return:
-    """
     user_role = {'SU': u'超级管理员', 'GA': u'组管理员', 'CU': u'普通用户'}
     header_title, path1, path2 = '查看用户', '用户管理', '用户列表'
     keyword = request.GET.get('keyword', '')
@@ -844,11 +771,6 @@ def user_list(request):
 
 @require_admin
 def user_list_adm(request):
-    """
-
-    :param request:
-    :return:
-    """
     user_role = {'SU': u'超级管理员', 'GA': u'组管理员', 'CU': u'普通用户'}
     header_title, path1, path2 = '查看用户', '用户管理', '用户列表'
     keyword = request.GET.get('keyword', '')
@@ -874,11 +796,6 @@ def user_list_adm(request):
 
 @require_login
 def user_detail(request):
-    """
-
-    :param request:
-    :return:
-    """
     header_title, path1, path2 = '查看用户', '用户管理', '用户详情'
     if request.session.get('role_id') == 0:
         user_id = request.session.get('user_id')
@@ -904,11 +821,6 @@ def user_detail(request):
 
 @require_admin
 def user_del(request):
-    """
-
-    :param request:
-    :return:
-    """
     user_id = request.GET.get('id', '')
     if not user_id:
         return HttpResponseRedirect('/juser/user_list/')
@@ -929,11 +841,6 @@ def user_del(request):
 
 @require_admin
 def user_del_ajax(request):
-    """
-
-    :param request:
-    :return:
-    """
     user_ids = request.POST.get('ids')
     user_ids = user_ids.split(',')
     if request.session.get('role_id', '') == 1:
@@ -953,11 +860,6 @@ def user_del_ajax(request):
 
 @require_super_user
 def user_edit(request):
-    """
-
-    :param request:
-    :return:
-    """
     header_title, path1, path2 = '编辑用户', '用户管理', '用户编辑'
     if request.method == 'GET':
         user_id = request.GET.get('id', '')
@@ -1021,11 +923,6 @@ def user_edit(request):
 
 @require_admin
 def user_edit_adm(request):
-    """
-
-    :param request:
-    :return:
-    """
     header_title, path1, path2 = '编辑用户', '用户管理', '用户编辑'
     user, dept = get_session_user_dept(request)
     if request.method == 'GET':
@@ -1081,11 +978,6 @@ def user_edit_adm(request):
 
 
 def profile(request):
-    """
-
-    :param request:
-    :return:
-    """
     user_id = request.session.get('user_id')
     if not user_id:
         return HttpResponseRedirect('/')
@@ -1094,11 +986,6 @@ def profile(request):
 
 
 def chg_info(request):
-    """
-
-    :param request:
-    :return:
-    """
     header_title, path1, path2 = '修改信息', '用户管理', '修改个人信息'
     user_id = request.session.get('user_id')
     user_set = User.objects.filter(id=user_id)
@@ -1139,11 +1026,6 @@ def chg_info(request):
 
 @require_login
 def down_key(request):
-    """
-
-    :param request:
-    :return:
-    """
     user_id = ''
     if is_super_user(request):
         user_id = request.GET.get('id')

@@ -1,5 +1,3 @@
-#coding=utf-8
-
 from django.db import models
 
 
@@ -33,6 +31,8 @@ class User(models.Model):
     role = models.CharField(max_length=2, choices=USER_ROLE_CHOICES, default='CU')
     dept = models.ForeignKey(DEPT)
     group = models.ManyToManyField(UserGroup)
+    ldap_pwd = models.CharField(max_length=100)
+    ssh_key_pwd = models.CharField(max_length=100)
     is_active = models.BooleanField(default=True)
     last_login = models.DateTimeField(null=True)
     date_joined = models.DateTimeField(null=True)

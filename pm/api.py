@@ -8,8 +8,8 @@ from ConfigParser import ConfigParser
 import getpass
 from Crypto.Cipher import AES
 from binascii import b2a_hex, a2b_hex
-import ldap
-from ldap import modlist
+#import ldap
+#from ldap import modlist
 import hashlib
 import datetime
 import subprocess
@@ -38,7 +38,7 @@ SEND_IP = CONF.get('base', 'ip')
 SEND_PORT = CONF.get('base', 'port')
 MAIL_FROM = CONF.get('mail', 'email_host_user')
 
-
+'''
 class LDAPMgmt():
     def __init__(self,
                  host_url,
@@ -94,7 +94,7 @@ class LDAPMgmt():
         except TypeError:
             raise ServerError('Decrypt password error, TYpe error.')
         return plain_text.rstrip('\0')
-
+'''
 
 if LDAP_ENABLE:
     LDAP_HOST_URL = CONF.get('ldap', 'host_url')

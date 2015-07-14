@@ -12,6 +12,19 @@ https://docs.djangoproject.com/en/1.8/ref/settings/
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 import os
+import ConfigParser
+
+config = ConfigParser.ConfigParser()
+
+BASE_DIR = os.path.dirname(os.path.dirname(__file__))
+config.read(os.path.join(BASE_DIR, 'jumpserver.conf'))
+
+DB_HOST = config.get('db', 'host')
+DB_PORT = config.getint('db', 'port')
+DB_USER = config.get('db', 'user')
+DB_PASSWORD = config.get('db', 'password')
+DB_DATABASE = config.get('db', 'database')
+
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -38,6 +51,11 @@ INSTALLED_APPS = (
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'jproject',
+    'pm',
+    'juser',
+    'jasset',
+    'jperm',
+    'jlog',
 )
 
 MIDDLEWARE_CLASSES = (
@@ -64,6 +82,7 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'pm.context_processors.name_proc'
             ],
         },
     },
@@ -77,8 +96,12 @@ WSGI_APPLICATION = 'pm.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': os.path.join(BASE_DIR, 'db.sqlite3'),
+        'ENGINE': 'django.db.backends.mysql',
+        'NAME': DB_DATABASE,
+        'USER': DB_USER,
+        'PASSWORD': DB_PASSWORD,
+        'HOST': DB_HOST,
+        'PORT': DB_PORT,
     }
 }
 
@@ -88,13 +111,13 @@ DATABASES = {
 
 LANGUAGE_CODE = 'en-us'
 
-TIME_ZONE = 'UTC'
+TIME_ZONE = 'Asia/Shanghai'
 
 USE_I18N = True
 
 USE_L10N = True
 
-USE_TZ = True
+USE_TZ = False
 
 
 # Static files (CSS, JavaScript, Images)

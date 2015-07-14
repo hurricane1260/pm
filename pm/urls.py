@@ -18,4 +18,19 @@ from django.contrib import admin
 
 urlpatterns = [
     url(r'^admin/', include(admin.site.urls)),
+    url(r'^$', 'pm.views.index'),
+    url(r'^api/user/$', 'pm.api.api_user'),
+    url(r'^skin_config/$', 'pm.views.skin_config'),
+    url(r'^install/$', 'pm.views.install'),
+    url(r'^base/$', 'pm.views.base'),
+    url(r'^login/$', 'pm.views.login'),
+    url(r'^logout/$', 'pm.views.logout'),
+    url(r'^file/upload/$', 'pm.views.upload'),
+    url(r'^file/download/$', 'pm.views.download'),
+    url(r'^error/$', 'pm.views.httperror'),
+    url(r'^juser/', include('juser.urls')),
+    url(r'^jasset/', include('jasset.urls')),
+    url(r'^jlog/', include('jlog.urls')),
+    url(r'^jperm/', include('jperm.urls')),
+    url(r'^node_auth/', 'pm.views.node_auth'),
 ]
