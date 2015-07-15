@@ -636,7 +636,9 @@ def user_add(request):
                                    ldap_pwd=CRYPTOR.encrypt(ldap_pwd),
                                    is_active=is_active,
                                    date_joined=datetime.datetime.now())
+                print password
 
+                '''
                 server_add_user(username, password, ssh_key_pwd)
                 if LDAP_ENABLE:
                     ldap_add_user(username, ldap_pwd)
@@ -651,19 +653,19 @@ def user_add(request):
                     密钥下载地址： http://%s:%s/juser/down_key/?id=%s
                     说明： 请登陆后再下载密钥！
                 """ % (name, username, dept.name, user_role.get(role_post, ''),
-                       password, ssh_key_pwd, SEND_IP, SEND_PORT, user.id)
+                       password, ssh_key_pwd, SEND_IP, SEND_PORT, user.id)'''
 
             except Exception, e:
                 error = u'添加用户 %s 失败 %s ' % (username, e)
                 try:
                     db_del_user(username)
-                    server_del_user(username)
-                    if LDAP_ENABLE:
-                        ldap_del_user(username)
+                    #server_del_user(username)
+                    #if LDAP_ENABLE:
+                    #    ldap_del_user(username)
                 except Exception:
                     pass
             else:
-                send_mail(mail_title, mail_msg, MAIL_FROM, [email], fail_silently=False)
+                #send_mail(mail_title, mail_msg, MAIL_FROM, [email], fail_silently=False)
                 msg = u'添加用户 %s 成功！ 用户密码已发送到 %s 邮箱！' % (username, email)
     return render_to_response('juser/user_add.html', locals(), context_instance=RequestContext(request))
 
@@ -833,9 +835,9 @@ def user_del(request):
     if user and user[0].username != 'admin':
         user = user[0]
         user.delete()
-        server_del_user(user.username)
-        if LDAP_ENABLE:
-            ldap_del_user(user.username)
+        #server_del_user(user.username)
+        #if LDAP_ENABLE:
+        #    ldap_del_user(user.username)
     return HttpResponseRedirect('/juser/user_list/')
 
 
@@ -851,9 +853,9 @@ def user_del_ajax(request):
         if user and user[0].username != 'admin':
             user = user[0]
             user.delete()
-            server_del_user(user.username)
-            if LDAP_ENABLE:
-                ldap_del_user(user.username)
+            #server_del_user(user.username)
+            #if LDAP_ENABLE:
+            #    ldap_del_user(user.username)
 
     return HttpResponse('删除成功')
 
@@ -1010,10 +1012,6 @@ def chg_info(request):
         if not error:
             if password != user.password:
                 password = md5_crypt(password)
-
-            if ssh_key_pwd != user.ssh_key_pwd:
-                gen_ssh_key(user.username, ssh_key_pwd)
-                ssh_key_pwd = md5_crypt(ssh_key_pwd)
 
             user_set.update(name=name, password=password, ssh_key_pwd=ssh_key_pwd, email=email)
             msg = '修改成功'

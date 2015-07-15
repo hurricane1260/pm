@@ -1,6 +1,6 @@
 from juser.models import User
 from jasset.models import Asset
-from jumpserver.api import *
+from pm.api import *
 from jperm.models import Apply
 
 
