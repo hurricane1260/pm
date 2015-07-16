@@ -32,5 +32,6 @@ urlpatterns = [
     url(r'^jasset/', include('jasset.urls')),
     url(r'^jlog/', include('jlog.urls')),
     url(r'^jperm/', include('jperm.urls')),
+    url(r'^jproject/', include('jproject.urls')),
     url(r'^node_auth/', 'pm.views.node_auth'),
 ]
