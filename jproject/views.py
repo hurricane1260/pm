@@ -43,3 +43,21 @@ def project_add(request):
             msg = u'添加项目 %s 成功' % name
 
     return render_to_response('jproject/project_add.html', locals(), context_instance=RequestContext(request))
+
+
+def project_detail(request):
+    header_title, path1, path2 = '查看项目', '项目管理', '项目详情'
+
+    pid = request.GET.get('id', '')
+
+    try:
+        print "--------------"
+        project = JProject.objects.get(id=pid)
+        milestones = project.jmilestone_set.all()
+        print milestones[0].parent_node
+
+    except Exception, e:
+        error = e
+        print e
+
+    return render_to_response('jproject/milestone_list.html', locals(), context_instance=RequestContext(request))

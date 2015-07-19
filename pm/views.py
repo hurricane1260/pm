@@ -137,7 +137,7 @@ def index(request):
         last = Log.objects.filter(user=username).latest('start_time')
         user_info['last'] = last
 
-    top = {'user': '活跃用户数', 'host': '活跃主机数', 'times': '登录次数'}
+    top = {'user': '活跃用户数', 'host': '活跃项目数', 'times': '登录次数'}
     top_dic = {}
     for key, value in top.items():
         li = []

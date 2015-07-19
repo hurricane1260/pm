@@ -23,12 +23,12 @@
             <div class="ibox float-e-margins">
                 <div class="ibox-title">
                     <span class="label label-info pull-right">Hosts</span>
-                    <h5>主机总数</h5>
+                    <h5>项目总数</h5>
                 </div>
                 <div class="ibox-content">
                     <h1 class="no-margins"><a href="/jasset/host_list/">{{ hosts.count }}</a></h1>
                     <div class="stat-percent font-bold text-info">{{ percent_host }} <i class="fa fa-level-up"></i></div>
-                    <small>All host</small>
+                    <small>All projects</small>
                 </div>
             </div>
         </div>
@@ -84,7 +84,7 @@
         <div class="col-lg-4">
             <div class="ibox float-e-margins">
                 <div class="ibox-title">
-                    <h5>权限申请</h5>
+                    <h5>项目权限申请</h5>
                     <div class="ibox-tools">
                         <a class="collapse-link">
                             <i class="fa fa-chevron-up"></i>
@@ -114,8 +114,8 @@
                                              <small class="pull-right">{{ perm.date_add|naturaltime }}</small>
                                         {% endifequal %}
                                         <strong>{{ perm.applyer }}</strong>
-                                        <div>申请 {{ perm.bisgroup|ast_to_list }} 主机组权限</div>
-                                        <div>申请 {{ perm.asset|ast_to_list }} 主机权限</div>
+                                        <div>申请 {{ perm.bisgroup|ast_to_list }} 项目权限</div>
+                                        <!--<div>申请 {{ perm.asset|ast_to_list }} 主机权限</div>-->
                                         <small class="text-muted">{{ perm.date_add }}</small>
                                     </div>
                                 </div>
@@ -266,7 +266,7 @@ $(function () {
             x: -20 //center
         },
         subtitle: {
-            text: 'Source: JumpServer',
+            text: 'Source: JProject',
             x: -20
         },
         rangeSelector: {
@@ -312,7 +312,7 @@ $(function () {
             x: -20 //center
         },
         subtitle: {
-            text: 'Source: JumpServer',
+            text: 'Source: JProject',
             x: -20
         },
         xAxis: {
@@ -345,11 +345,11 @@ $(function () {
 
         $('#hosttop10').highcharts({
         title: {
-            text: '一周主机登录TOP10',
+            text: '一周项目更新TOP10',
             x: -20 //center
         },
         subtitle: {
-            text: 'Source: JumpServer',
+            text: 'Source: JProject',
             x: -20
         },
         xAxis: {

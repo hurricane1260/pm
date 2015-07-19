@@ -386,3 +386,11 @@ def sudo_cmd_ids(user_group_id):
 @register.filter(name='cmd_group_split')
 def cmd_group_split(cmd_group):
     return cmd_group.cmd.split(',')
+
+
+##################################################
+
+@register.filter(name='get_project_status')
+def get_project_status(id):
+    p_status = {0: 'Normal',1: 'Delay'}
+    return p_status[id]
