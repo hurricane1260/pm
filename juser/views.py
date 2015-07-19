@@ -1000,10 +1000,9 @@ def chg_info(request):
     if request.method == 'POST':
         name = request.POST.get('name', '')
         password = request.POST.get('password', '')
-        ssh_key_pwd = request.POST.get('ssh_key_pwd', '')
         email = request.POST.get('email', '')
 
-        if '' in [name, password, ssh_key_pwd, email]:
+        if '' in [name, password, email]:
             error = '不能为空'
 
         if len(password) < 6:
