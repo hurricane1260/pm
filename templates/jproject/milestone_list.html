@@ -73,20 +73,20 @@
 
     var treeNodes;
 
-    /*treeNodes = [
+    treeNodes = [
         {% for ms in milestones %}
             {
-                "id":{{ ms.id }},"parent_id":{{ ms.parent_node }},"name":"{{ ms.name }}"
+                "id":{{ ms.id }},"pId":{{ ms.parent_node }},"name":"{{ ms.name }}"
             },
         {% endfor %}
-    ];*/
-    treeNodes = [
+    ];
+    /*treeNodes = [
         {id:1, pId:0, name:"jkdaj;djs"},
         {id:2, pId:1, name:"purchase cement"},
         {id:3, pId:1, name:"purchase cement 2"},
         {id:4, pId:1, name:"purchase cement 3"},
         {id:5, pId:1, name:"purchase cement 4"}
-    ];
+    ];*/
     /*var treeNodes =[
 		{id:1, pId:0, name:"[core] 基本功能 演示", open:true},
 		{id:101, pId:1, name:"最简单的树 --  标准 JSON 数据", file:"core/standardData"},
