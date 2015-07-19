@@ -1006,14 +1006,14 @@ def chg_info(request):
         if '' in [name, password, ssh_key_pwd, email]:
             error = '不能为空'
 
-        if len(password) < 6 or len(ssh_key_pwd) < 6:
+        if len(password) < 6:
             error = '密码须大于6位'
 
         if not error:
             if password != user.password:
                 password = md5_crypt(password)
 
-            user_set.update(name=name, password=password, ssh_key_pwd=ssh_key_pwd, email=email)
+            user_set.update(name=name, password=password, email=email)
             msg = '修改成功'
 
     return render_to_response('juser/chg_info.html', locals(), context_instance=RequestContext(request))
